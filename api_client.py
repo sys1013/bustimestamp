@@ -96,6 +96,9 @@ class BusApiClient:
         try:
             resp = self.session.get(url, params=params, timeout=10)
             root = ET.fromstring(resp.content)
+            err_elem = root.find(".//errMsg")
+            if err_elem is not None and err_elem.text:
+                logger.error(f"[{route_id}] 공공데이터 API 오류 메시지 수신: {err_elem.text.strip()}")
             for it in root.iter("itemList"):
                 plate_no = it.findtext("BUS_NUM_PLATE")
                 seq = it.findtext("LATEST_STOPSEQ")
