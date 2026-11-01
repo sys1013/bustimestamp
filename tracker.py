@@ -84,40 +84,49 @@ class BusTripTracker:
                 total_duration_sec = None
 
                 if last_state:
-                    # 직전 정류소 대비 소요시간 계산
                     prev_time = last_state["last_time"]
                     prev_seq = last_state["last_seq"]
                     prev_seat = last_state.get("last_seat")
+                    trip_id = last_state.get("trip_id", 1)
 
-                    if current_seq > prev_seq:
-                        diff_sec = int((now - prev_time).total_seconds())
-                        if 10 <= diff_sec <= 7200:
-                            duration_sec = diff_sec
-                            mins = diff_sec // 60
-                            secs = diff_sec % 60
-                            duration_str = f"{mins}분 {secs}초" if mins > 0 else f"{secs}초"
+                    # 정류소 순번이 이전보다 작아진 경우 새로운 운행 회차로 판별
+                    if current_seq < prev_seq:
+                        trip_id += 1
+                        first_recorded_time = now
+                    else:
+                        # 직전 정류소 대비 소요시간 계산
+                        if current_seq > prev_seq:
+                            diff_sec = int((now - prev_time).total_seconds())
+                            if 10 <= diff_sec <= 7200:
+                                duration_sec = diff_sec
+                                mins = diff_sec // 60
+                                secs = diff_sec % 60
+                                duration_str = f"{mins}분 {secs}초" if mins > 0 else f"{secs}초"
 
-                    # 직전 정류소 대비 좌석 변화량 계산
-                    if remain_seats >= 0 and prev_seat is not None and prev_seat >= 0:
-                        diff_seat = remain_seats - prev_seat
-                        if diff_seat < 0:
-                            seat_change_str = f"{diff_seat}석 ({abs(diff_seat)}명 탑승)"
-                        elif diff_seat > 0:
-                            seat_change_str = f"+{diff_seat}석 ({diff_seat}명 하차)"
-                        else:
-                            seat_change_str = "변화없음(0석)"
+                        # 직전 정류소 대비 좌석 변화량 계산
+                        if remain_seats >= 0 and prev_seat is not None and prev_seat >= 0:
+                            diff_seat = remain_seats - prev_seat
+                            if diff_seat < 0:
+                                seat_change_str = f"{diff_seat}석 ({abs(diff_seat)}명 탑승)"
+                            elif diff_seat > 0:
+                                seat_change_str = f"+{diff_seat}석 ({diff_seat}명 하차)"
+                            else:
+                                seat_change_str = "변화없음(0석)"
 
-                    # 최초 출발 정류소 대비 누적 소요시간 계산
-                    first_time = last_state.get("first_time", prev_time)
-                    tot_sec = int((now - first_time).total_seconds())
-                    if tot_sec > 0:
-                        total_duration_sec = tot_sec
-                        t_mins = tot_sec // 60
-                        t_secs = tot_sec % 60
-                        total_duration_str = f"{t_mins}분 {t_secs}초" if t_mins > 0 else f"{t_secs}초"
-                    first_recorded_time = first_time
+                        # 최초 출발 정류소 대비 누적 소요시간 계산
+                        first_time = last_state.get("first_time", prev_time)
+                        tot_sec = int((now - first_time).total_seconds())
+                        if tot_sec > 0:
+                            total_duration_sec = tot_sec
+                            t_mins = tot_sec // 60
+                            t_secs = tot_sec % 60
+                            total_duration_str = f"{t_mins}분 {t_secs}초" if t_mins > 0 else f"{t_secs}초"
+                        first_recorded_time = first_time
                 else:
+                    trip_id = 1
                     first_recorded_time = now
+
+                time_slot = f"{first_recorded_time.strftime('%H')}시대"
 
                 if self.target_direction == "to_seoul":
                     direction_text = "출근(송도->서울)"
@@ -130,6 +139,8 @@ class BusTripTracker:
                     "date": now.strftime("%Y-%m-%d"),
                     "time": now.strftime("%H:%M:%S"),
                     "route_name": self.route_name,
+                    "time_slot": time_slot,
+                    "trip_id": trip_id,
                     "direction": direction_text,
                     "plate_no": plate_no,
                     "stop_seq": current_seq,
@@ -143,7 +154,7 @@ class BusTripTracker:
                 }
                 self.records.append(record)
                 logger.info(
-                    f"[{self.route_name} - {plate_no}] {station_name}(순번 {current_seq}) | "
+                    f"[{self.route_name} | {time_slot} | {plate_no}] {station_name}(순번 {current_seq}) | "
                     f"잔여: {record['remain_seats']} | 변화: {seat_change_str} | 소요: {duration_str} | 누적: {total_duration_str}"
                 )
 
@@ -153,5 +164,6 @@ class BusTripTracker:
                     "last_time": now,
                     "last_station": station_name,
                     "last_seat": remain_seats,
-                    "first_time": first_recorded_time
+                    "first_time": first_recorded_time,
+                    "trip_id": trip_id,
                 }
