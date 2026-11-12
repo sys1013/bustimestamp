@@ -1,11 +1,10 @@
 name: M6405 & M6450 Bus Commute Tracker
 
 on:
-  schedule:
-    # 1. 아침 출근 세션: 한국 시각 05:00 (UTC 전날 20:00) 매주 월~금
-    - cron: '0 20 * * 0-4'
-    # 2. 저녁 퇴근 세션: 한국 시각 17:00 (UTC 당일 08:00) 매주 월~금
-    - cron: '0 8 * * 1-5'
+  # 자동 스케줄 실행 중지됨 (사장님 지시로 비활성화)
+  # schedule:
+  #   - cron: '0 20 * * 0-4'
+  #   - cron: '0 8 * * 1-5'
   workflow_dispatch:
     inputs:
       session:
